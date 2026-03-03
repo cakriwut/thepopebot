@@ -559,15 +559,25 @@ async function upgrade() {
   try {
     execSync('npm run build', { stdio: 'inherit', cwd });
   } catch {
-    console.log('  Build failed. Try running "npm run build" manually after resolving any issues.');
+    console.error('\n  Build failed. The upgrade has been applied but the project does not build.');
+    console.error('  Fix the build errors, then run:\n');
+    console.error(`    npm run build`);
+    console.error(`    git add -A && git commit -m "upgrade thepopebot to ${targetVersion}"`);
+    console.error('    git push\n');
+    process.exit(1);
   }
 
   // --- Commit upgrade ---
-  try {
-    execSync('git add -A', { cwd });
-    execSync(`git commit -m "upgrade thepopebot to ${targetVersion}"`, { stdio: 'inherit', cwd });
-  } catch {
-    // Nothing to commit — that's fine
+  const changes = execSync('git status --porcelain', { encoding: 'utf8', cwd }).trim();
+  if (changes) {
+    try {
+      execSync('git add -A', { cwd });
+      execSync(`git commit -m "upgrade thepopebot to ${targetVersion}"`, { stdio: 'inherit', cwd });
+    } catch {
+      console.error('\n  Failed to commit upgrade. Try running manually:');
+      console.error(`    git add -A && git commit -m "upgrade thepopebot to ${targetVersion}"\n`);
+      process.exit(1);
+    }
   }
 
   // --- Push ---
@@ -576,6 +586,7 @@ async function upgrade() {
     execSync('git push', { stdio: 'inherit', cwd });
   } catch {
     console.error('\n  Could not push to GitHub. Try running "git push" manually.\n');
+    process.exit(1);
   }
 
   // --- Docker restart (only if compose file exists, docker available, and containers running) ---

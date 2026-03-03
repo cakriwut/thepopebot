@@ -120,6 +120,12 @@ else
 fi
 
 git push origin
+
+# Capture log commit SHA, then remove logs so they don't merge into main
+LOG_SHA=$(git rev-parse HEAD)
+git rm -rf "${LOG_DIR}"
+git commit -m "done." || true
+git push origin
 set -e
 
 # Cleanup Chrome
@@ -127,8 +133,12 @@ if [ -n "$CHROME_PID" ]; then
     kill $CHROME_PID 2>/dev/null || true
 fi
 
-# Create PR (auto-merge handled by GitHub Actions workflow)
-gh pr create --title "🤖 Agent Job: ${TITLE}" --body "${JOB_DESCRIPTION}" --base main || true
+# Create PR with log permalink (auto-merge handled by GitHub Actions workflow)
+REPO_SLUG=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+LOG_URL="https://github.com/${REPO_SLUG}/tree/${LOG_SHA}/logs/${JOB_ID}"
+gh pr create --title "🤖 Agent Job: ${TITLE}" \
+  --body "📋 [View Job Logs](${LOG_URL})"$'\n\n---\n\n'"${JOB_DESCRIPTION}" \
+  --base main || true
 
 # Re-raise failure so the workflow reports it
 if [ $AGENT_EXIT -ne 0 ]; then

@@ -248,7 +248,7 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
         isUser ? 'justify-end' : 'justify-start'
       )}
     >
-      <div className="flex flex-col max-w-[80%]">
+      <div className={cn('flex flex-col', isUser ? 'max-w-[80%]' : 'w-full')}>
         {editing ? (
           <div className="flex flex-col gap-2">
             <textarea
@@ -290,10 +290,10 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
           <>
             <div
               className={cn(
-                'rounded-xl px-4 py-3 text-sm leading-relaxed',
+                'text-sm leading-relaxed',
                 isUser
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-foreground'
+                  ? 'rounded-xl px-4 py-3 bg-muted text-foreground'
+                  : 'text-foreground'
               )}
             >
               {isUser ? (
@@ -315,7 +315,7 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
                       {otherFileParts.map((part, i) => (
                         <div
                           key={i}
-                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs bg-primary-foreground/20"
+                          className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs bg-foreground/10"
                         >
                           <FileTextIcon size={12} />
                           <span className="max-w-[150px] truncate">
@@ -413,7 +413,7 @@ export function PreviewMessage({ message, isLoading, onRetry, onEdit }) {
 export function ThinkingMessage() {
   return (
     <div className="flex gap-4 w-full justify-start">
-      <div className="flex items-center gap-2 rounded-xl bg-muted px-4 py-3 text-sm text-muted-foreground">
+      <div className="flex items-center gap-2 px-4 py-3 text-sm text-muted-foreground">
         <SpinnerIcon size={14} />
         <span>Thinking...</span>
       </div>

@@ -11,8 +11,6 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
@@ -263,9 +261,7 @@ export function AppSidebar({ user }) {
 
       {!collapsed && (
         <SidebarContent>
-          <SidebarGroup className="pt-0">
-            <SidebarGroupLabel>Chats</SidebarGroupLabel>
-          </SidebarGroup>
+          <div className="mx-4 mb-1 border-t border-border" />
           <SidebarHistory />
         </SidebarContent>
       )}

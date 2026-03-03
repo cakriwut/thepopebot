@@ -9,8 +9,8 @@ GH_USER_EMAIL=$(echo "$GH_USER_JSON" | jq -r '.email // "\(.id)+\(.login)@users.
 git config --global user.name "$GH_USER_NAME"
 git config --global user.email "$GH_USER_EMAIL"
 
-# Clone repo
-if [ -n "$REPO" ]; then
+# Clone repo (skip if already cloned — enables docker restart)
+if [ -n "$REPO" ] && [ ! -d "/home/claude-code/workspace/.git" ]; then
     git clone --branch "$BRANCH" "https://github.com/$REPO" /home/claude-code/workspace
 fi
 
