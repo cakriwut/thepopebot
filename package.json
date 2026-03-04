@@ -1,6 +1,6 @@
 {
   "name": "thepopebot",
-  "version": "1.2.73-beta.21",
+  "version": "1.2.73-beta.22",
   "type": "module",
   "description": "Create autonomous AI agents with a two-layer architecture: Next.js Event Handler + Docker Agent.",
   "bin": {
