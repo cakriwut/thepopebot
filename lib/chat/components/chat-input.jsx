@@ -45,30 +45,17 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
   const isStreaming = status === 'streaming' || status === 'submitted';
-  const voiceStreamRef = useRef(null);
   const volumeRef = useRef(0);
   const voiceEnabled = process.env.NEXT_PUBLIC_VOICE_ENABLED === 'true';
 
-  const { isRecording, startRecording, stopRecording } = useVoiceInput({
+  const { isConnecting, isRecording, startRecording, stopRecording } = useVoiceInput({
     getToken: getVoiceToken,
     onVolumeChange: (rms) => { volumeRef.current = rms; },
     onTranscript: (text) => {
-      // Cancel any in-progress stream
-      if (voiceStreamRef.current) clearTimeout(voiceStreamRef.current);
-      let i = 0;
-      const streamChar = () => {
-        if (i >= text.length) { voiceStreamRef.current = null; return; }
-        // Capture i by value — React 18 batches setTimeout callbacks,
-        // so the updater may run after i++ if we close over i directly.
-        const ci = i;
-        setInput((prev) => {
-          const needsSpace = ci === 0 && prev && !prev.endsWith(' ');
-          return prev + (needsSpace ? ' ' : '') + text[ci];
-        });
-        i++;
-        voiceStreamRef.current = setTimeout(streamChar, 30);
-      };
-      streamChar();
+      setInput((prev) => {
+        const needsSpace = prev && !prev.endsWith(' ');
+        return prev + (needsSpace ? ' ' : '') + text;
+      });
     },
     onError: (err) => console.error('[voice]', err),
   });
@@ -282,13 +269,16 @@ export function ChatInput({ input, setInput, onSubmit, status, stop, files, setF
                 <button
                   type="button"
                   onClick={isRecording ? stopRecording : startRecording}
+                  disabled={isConnecting}
                   className={cn(
                     'inline-flex items-center justify-center rounded-lg p-2',
-                    isRecording
-                      ? 'bg-red-500 text-white hover:opacity-80'
-                      : 'bg-foreground text-background hover:opacity-80'
+                    isConnecting
+                      ? 'bg-muted-foreground/20 text-muted-foreground cursor-wait animate-pulse'
+                      : isRecording
+                        ? 'bg-red-500 text-white hover:opacity-80'
+                        : 'bg-foreground text-background hover:opacity-80'
                   )}
-                  aria-label={isRecording ? 'Stop recording' : 'Start voice input'}
+                  aria-label={isConnecting ? 'Connecting...' : isRecording ? 'Stop recording' : 'Start voice input'}
                 >
                   <MicIcon size={16} />
                 </button>
