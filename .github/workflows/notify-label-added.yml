@@ -12,6 +12,7 @@ jobs:
       - name: Look up webhook URL and fire
         env:
           ALL_VARS: ${{ toJson(vars) }}
+          POPEBOT_API_KEY: ${{ secrets.POPEBOT_API_KEY }}
         run: |
           LABEL="${{ github.event.label.name }}"
 
@@ -31,6 +32,7 @@ jobs:
           echo "Firing webhook for label '$LABEL' → $WEBHOOK_URL"
 
           curl -s -X POST "$WEBHOOK_URL" \
+            -H "x-api-key: $POPEBOT_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
               --argjson number '${{ github.event.issue.number }}' \
