@@ -50,7 +50,7 @@ for skill_dir in /job/skills/active/*/; do
 done
 
 # Register Playwright MCP server (browser automation via native Claude Code tools)
-claude mcp add --transport stdio playwright -- npx -y @playwright/mcp@latest
+claude mcp add --transport stdio playwright -- npx -y @playwright/mcp@latest --headless --browser chromium
 
 # Setup logs
 LOG_DIR="/job/logs/${JOB_ID}"
