@@ -17,11 +17,24 @@ export function SettingsGeneralPage() {
     });
   }, []);
 
+  const [showBetaConfirm, setShowBetaConfirm] = useState(false);
+
   const handleToggle = async () => {
-    const newValue = !includeBeta;
-    setIncludeBeta(newValue);
+    if (!includeBeta) {
+      setShowBetaConfirm(true);
+      return;
+    }
+    setIncludeBeta(false);
     setSaving(true);
-    await updateGeneralSetting('UPGRADE_INCLUDE_BETA', newValue ? 'true' : 'false');
+    await updateGeneralSetting('UPGRADE_INCLUDE_BETA', 'false');
+    setSaving(false);
+  };
+
+  const confirmBeta = async () => {
+    setShowBetaConfirm(false);
+    setIncludeBeta(true);
+    setSaving(true);
+    await updateGeneralSetting('UPGRADE_INCLUDE_BETA', 'true');
     setSaving(false);
   };
 
@@ -63,6 +76,33 @@ export function SettingsGeneralPage() {
             </div>
           </label>
         </div>
+
+        {showBetaConfirm && (
+          <div className="mt-3 rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4">
+            <p className="text-sm font-medium text-yellow-500 mb-1">
+              Are you sure?
+            </p>
+            <p className="text-sm text-muted-foreground mb-3">
+              Beta releases may contain breaking changes that could require manual recovery, including SSH access to your server, restoring backups, or re-running setup. Only enable this if you're comfortable troubleshooting issues.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={confirmBeta}
+                disabled={saving}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30 transition-colors"
+              >
+                {saving ? 'Saving...' : 'Enable beta releases'}
+              </button>
+              <button
+                onClick={() => setShowBetaConfirm(false)}
+                disabled={saving}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-muted-foreground hover:bg-muted transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
