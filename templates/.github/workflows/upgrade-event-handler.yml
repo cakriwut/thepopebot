@@ -21,11 +21,10 @@ jobs:
         run: |
           docker exec thepopebot-event-handler bash -c '
             set -e
+            git config --global --add safe.directory /project
             export GH_TOKEN=$(grep "^GH_TOKEN=" /app/.env | cut -d= -f2-)
             echo "${GH_TOKEN}" | gh auth login --with-token
             gh auth setup-git
-
-            git config --global --add safe.directory /project
             REPO_URL=$(git -C /project remote get-url origin)
             WORK_DIR=$(mktemp -d)
             git clone --depth 1 "$REPO_URL" "$WORK_DIR"

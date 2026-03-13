@@ -18,11 +18,10 @@ jobs:
         run: |
           docker exec thepopebot-event-handler bash -c '
             set -e
+            git config --global --add safe.directory /project
             export GH_TOKEN=$(grep "^GH_TOKEN=" /app/.env | cut -d= -f2-)
             echo "${GH_TOKEN}" | gh auth login --with-token
             gh auth setup-git
-
-            git config --global --add safe.directory /project
             git -C /project config user.name "thepopebot"
             git -C /project config user.email "thepopebot@users.noreply.github.com"
             git -C /project fetch origin main
