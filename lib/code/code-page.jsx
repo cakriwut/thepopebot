@@ -276,9 +276,8 @@ export default function CodePage({ session, codeWorkspaceId }) {
               )}
 
               {/* + buttons */}
-              <div className="w-3 shrink-0 self-stretch" />
               <button
-                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground border border-dashed border-muted-foreground/25 hover:border-muted-foreground/40 rounded-md transition-colors self-center disabled:opacity-50 disabled:cursor-default"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default"
                 onClick={handleNewCode}
                 disabled={creatingCode}
                 title="New code tab"
@@ -286,7 +285,7 @@ export default function CodePage({ session, codeWorkspaceId }) {
                 + Code
               </button>
               <button
-                className="ml-1 flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground border border-dashed border-muted-foreground/25 hover:border-muted-foreground/40 rounded-md transition-colors self-center disabled:opacity-50 disabled:cursor-default"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium font-mono text-muted-foreground hover:text-foreground rounded-t-md border-t border-x border-dashed border-t-muted-foreground/30 border-x-muted-foreground/20 hover:border-t-muted-foreground/50 hover:border-x-muted-foreground/40 transition-all disabled:opacity-50 disabled:cursor-default"
                 onClick={handleNewShell}
                 disabled={creatingShell}
                 title="New shell terminal"

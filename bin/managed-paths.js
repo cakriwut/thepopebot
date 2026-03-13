@@ -7,6 +7,7 @@ export const MANAGED_PATHS = [
 
   'docker-compose.yml',
   '.dockerignore',
+  '.gitignore',
   'CLAUDE.md',
 ];
 

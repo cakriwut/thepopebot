@@ -33,6 +33,7 @@ Files in managed directories are auto-synced (created, updated, **and deleted**)
 
 - `.github/workflows/` — CI/CD workflows
 - `docker-compose.yml`, `.dockerignore` — Docker config
+- `.gitignore` — Git ignore rules
 - `CLAUDE.md` — AI assistant context
 
 ## Directory Structure
