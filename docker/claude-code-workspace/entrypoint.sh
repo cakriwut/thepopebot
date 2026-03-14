@@ -9,23 +9,23 @@ GH_USER_EMAIL=$(echo "$GH_USER_JSON" | jq -r '.email // "\(.id)+\(.login)@users.
 git config --global user.name "$GH_USER_NAME"
 git config --global user.email "$GH_USER_EMAIL"
 
-# Clone repo (skip if already cloned — enables docker restart)
-if [ -n "$REPO" ] && [ ! -d "/home/claude-code/workspace/.git" ]; then
-    git clone --branch "$BRANCH" "https://github.com/$REPO" /home/claude-code/workspace
-fi
-
 cd /home/claude-code/workspace
 
-# Create or checkout feature branch
+# Clone if volume is empty, otherwise reset to clean state
+if [ ! -d ".git" ]; then
+    git clone --branch "$BRANCH" "https://github.com/$REPO" .
+else
+    git fetch origin
+    git checkout "$BRANCH"
+    git reset --hard "origin/$BRANCH"
+    git clean -fd
+fi
+
+# Checkout feature branch (create or reset)
 if [ -n "$FEATURE_BRANCH" ]; then
-    if git rev-parse --verify "$FEATURE_BRANCH" >/dev/null 2>&1; then
-        # Branch exists locally (restart case) — just switch to it
-        git checkout "$FEATURE_BRANCH"
-    elif git ls-remote --heads origin "$FEATURE_BRANCH" | grep -q .; then
-        # Branch exists on remote (recreation case) — check it out with tracking
-        git checkout -b "$FEATURE_BRANCH" "origin/$FEATURE_BRANCH"
+    if git ls-remote --heads origin "$FEATURE_BRANCH" | grep -q .; then
+        git checkout -B "$FEATURE_BRANCH" "origin/$FEATURE_BRANCH"
     else
-        # Branch doesn't exist (first creation) — create and push
         git checkout -b "$FEATURE_BRANCH"
         git push -u origin "$FEATURE_BRANCH"
     fi
