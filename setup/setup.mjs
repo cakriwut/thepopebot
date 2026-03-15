@@ -869,7 +869,7 @@ async function main() {
       const tunnelSpinner = clack.spinner();
       tunnelSpinner.start('Starting Cloudflare Quick Tunnel to localhost:80...');
       try {
-        const { url, process: tunnelProcess } = await startQuickTunnel(80);
+        const { url, tunnelProcess } = await startQuickTunnel(80);
         tunnelSpinner.stop(`Tunnel ready: ${url}`);
         appUrl = url;
         clack.log.warn(
