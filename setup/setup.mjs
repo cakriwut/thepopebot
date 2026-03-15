@@ -855,7 +855,11 @@ async function main() {
         const { tunnelProcess } = await startNamedTunnel(tunnelName, 80);
         tunnelSpinner.stop(`Tunnel connected: https://${tunnelHostname}`);
         appUrl = `https://${tunnelHostname}`;
-        clack.log.info(`Tunnel process PID: ${tunnelProcess.pid}  (kill it with: kill ${tunnelProcess.pid})`);
+        const stopHint =
+          process.platform === 'win32'
+            ? `taskkill /PID ${tunnelProcess.pid} /F`
+            : `kill ${tunnelProcess.pid}`;
+        clack.log.info(`Tunnel process PID: ${tunnelProcess.pid}  (stop it with: ${stopHint})`);
         // Detach so the tunnel keeps running after the setup wizard exits
         tunnelProcess.unref();
       } catch (err) {
