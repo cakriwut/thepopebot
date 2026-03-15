@@ -1,4 +1,4 @@
-import { spawn, execSync, execFileSync } from 'child_process';
+import { spawn, execFileSync } from 'child_process';
 
 /**
  * Get cloudflared installation instructions for the current platform
@@ -21,7 +21,7 @@ export function getCloudflaredInstallCmd() {
  * Throws on failure.
  */
 export function cloudflaredLogin() {
-  execSync('cloudflared tunnel login', { stdio: 'inherit' });
+  execFileSync('cloudflared', ['tunnel', 'login'], { stdio: 'inherit' });
 }
 
 /**
