@@ -148,7 +148,10 @@ export function startQuickTunnel(port = 80, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const child = spawn('cloudflared', ['tunnel', '--url', `http://localhost:${port}`], {
       stdio: ['ignore', 'pipe', 'pipe'],
+      detached: true,
     });
+    // Allow the parent process to exit independently of the tunnel process
+    child.unref();
 
     let output = '';
     const urlRegex = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/i;
