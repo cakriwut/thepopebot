@@ -56,7 +56,7 @@ export function routeTunnelDns(name, hostname) {
 
 /**
  * Start a named Cloudflare Tunnel pointing at a local port.
- * Resolves with { process } once the tunnel reports at least one active connection.
+ * Resolves with { tunnelProcess } once the tunnel reports at least one active connection.
  *
  * @param {string} name - Tunnel name or UUID
  * @param {number} port - Local port to expose (default: 80)
