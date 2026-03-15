@@ -172,7 +172,7 @@ export function startQuickTunnel(port = 80, timeoutMs = 30000) {
         if (child.stderr) {
           child.stderr.resume();
         }
-        resolve({ url: match[0], tunnelProcess: child });
+        resolve({ url: match[0], process: child });
       }
     };
 
