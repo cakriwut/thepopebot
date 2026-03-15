@@ -68,7 +68,7 @@ export function startNamedTunnel(name, port = 80, timeoutMs = 30000) {
     const child = spawn(
       'cloudflared',
       ['tunnel', 'run', '--url', `http://localhost:${port}`, name],
-      { stdio: ['ignore', 'pipe', 'pipe'] }
+      { stdio: ['ignore', 'pipe', 'pipe'], detached: true }
     );
 
     let output = '';
@@ -84,8 +84,12 @@ export function startNamedTunnel(name, port = 80, timeoutMs = 30000) {
       output += data.toString();
       if (connectedRegex.test(output)) {
         clearTimeout(timeout);
-        child.stdout.off('data', checkOutput);
-        child.stderr.off('data', checkOutput);
+        if (child.stdout) {
+          child.stdout.off('data', checkOutput);
+        }
+        if (child.stderr) {
+          child.stderr.off('data', checkOutput);
+        }
 
         // Keep draining stdout/stderr so cloudflared does not block on full pipes
         if (child.stdout && typeof child.stdout.resume === 'function') {
@@ -93,6 +97,17 @@ export function startNamedTunnel(name, port = 80, timeoutMs = 30000) {
         }
         if (child.stderr && typeof child.stderr.resume === 'function') {
           child.stderr.resume();
+        }
+
+        // Detach the tunnel process and its stdio from the parent event loop
+        if (typeof child.unref === 'function') {
+          child.unref();
+        }
+        if (child.stdout && typeof child.stdout.unref === 'function') {
+          child.stdout.unref();
+        }
+        if (child.stderr && typeof child.stderr.unref === 'function') {
+          child.stderr.unref();
         }
 
         resolve({ tunnelProcess: child });
