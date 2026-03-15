@@ -86,6 +86,15 @@ export function startNamedTunnel(name, port = 80, timeoutMs = 30000) {
         clearTimeout(timeout);
         child.stdout.off('data', checkOutput);
         child.stderr.off('data', checkOutput);
+
+        // Keep draining stdout/stderr so cloudflared does not block on full pipes
+        if (child.stdout && typeof child.stdout.resume === 'function') {
+          child.stdout.resume();
+        }
+        if (child.stderr && typeof child.stderr.resume === 'function') {
+          child.stderr.resume();
+        }
+
         resolve({ tunnelProcess: child });
       }
     };
