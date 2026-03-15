@@ -137,12 +137,12 @@ export function startNamedTunnel(name, port = 80, timeoutMs = 30000) {
  * Start a Cloudflare Quick Tunnel pointing at a local port.
  * No Cloudflare account required — uses trycloudflare.com.
  *
- * Resolves with { url, process } once the public URL appears in cloudflared output.
+ * Resolves with { url, tunnelProcess } once the public URL appears in cloudflared output.
  * The caller is responsible for keeping/killing the child process.
  *
  * @param {number} port - Local port to expose (default: 80)
  * @param {number} timeoutMs - Max wait time in ms (default: 30000)
- * @returns {Promise<{url: string, process: import('child_process').ChildProcess}>}
+ * @returns {Promise<{url: string, tunnelProcess: import('child_process').ChildProcess}>}
  */
 export function startQuickTunnel(port = 80, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
