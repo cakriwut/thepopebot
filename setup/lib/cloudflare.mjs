@@ -150,6 +150,13 @@ export function startQuickTunnel(port = 80, timeoutMs = 30000) {
         clearTimeout(timeout);
         child.stdout.off('data', checkOutput);
         child.stderr.off('data', checkOutput);
+        // Keep draining stdout/stderr so cloudflared does not block on full buffers
+        if (child.stdout) {
+          child.stdout.resume();
+        }
+        if (child.stderr) {
+          child.stderr.resume();
+        }
         resolve({ url: match[0], tunnelProcess: child });
       }
     };
