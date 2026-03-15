@@ -150,7 +150,7 @@ export function startQuickTunnel(port = 80, timeoutMs = 30000) {
         clearTimeout(timeout);
         child.stdout.off('data', checkOutput);
         child.stderr.off('data', checkOutput);
-        resolve({ url: match[0], process: child });
+        resolve({ url: match[0], tunnelProcess: child });
       }
     };
 
