@@ -92,6 +92,7 @@ export async function checkPrerequisites() {
     gh: { installed: false, authenticated: false },
     docker: { installed: false, running: false },
     ngrok: { installed: false },
+    cloudflared: { installed: false },
     git: { installed: false, remoteInfo: null },
   };
 
@@ -130,6 +131,9 @@ export async function checkPrerequisites() {
 
   // Check ngrok
   results.ngrok.installed = commandExists('ngrok');
+
+  // Check cloudflared
+  results.cloudflared.installed = commandExists('cloudflared');
 
   // Check git
   results.git.installed = commandExists('git');

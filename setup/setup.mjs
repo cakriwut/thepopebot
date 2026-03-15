@@ -39,6 +39,7 @@ import {
 import { writeModelsJson, updateEnvVariable } from './lib/auth.mjs';
 import { loadEnvFile } from './lib/env.mjs';
 import { syncConfig } from './lib/sync.mjs';
+import { startQuickTunnel, startNamedTunnel, cloudflaredLogin, createNamedTunnel, routeTunnelDns, getCloudflaredInstallCmd } from './lib/cloudflare.mjs';
 
 const logo = `
  _____ _          ____                  ____        _
@@ -252,20 +253,25 @@ async function main() {
     needsPush = true;
   }
 
-  // ngrok check (informational only)
-  if (prereqs.ngrok.installed) {
+  // Tunnel tool check (informational only)
+  if (prereqs.cloudflared.installed) {
+    clack.log.success('cloudflared installed (Cloudflare Tunnel)');
+  } else if (prereqs.ngrok.installed) {
     clack.log.success('ngrok installed');
   } else {
-    clack.log.warn('ngrok not installed (needed to expose local server)');
+    clack.log.warn('No tunnel tool detected (needed to expose local server)');
+    const cfInstallCmd = getCloudflaredInstallCmd();
     const ngrokInstallCmd = process.platform === 'win32'
       ? 'winget install ngrok.ngrok'
       : process.platform === 'darwin'
         ? 'brew install ngrok/ngrok/ngrok'
         : 'See https://ngrok.com/download';
     clack.log.info(
-      `Install with: ${ngrokInstallCmd}\n` +
-      '  Sign up for a free account at https://dashboard.ngrok.com/signup\n' +
-      '  Then run: ngrok config add-authtoken <YOUR_TOKEN>'
+      `Option A — Cloudflare Tunnel (recommended, no account needed):\n` +
+      `  ${cfInstallCmd}\n\n` +
+      `Option B — ngrok:\n` +
+      `  ${ngrokInstallCmd}\n` +
+      '  Account: https://dashboard.ngrok.com/signup'
     );
   }
 
@@ -727,27 +733,192 @@ async function main() {
   }
 
   if (!appUrl) {
-    clack.log.info(
-      'Your app needs a public URL so GitHub can send webhook notifications.\n' +
-      '  Examples:\n' +
-      '    ngrok: https://abc123.ngrok.io\n' +
-      '    VPS:   https://mybot.example.com\n' +
-      '    PaaS:  https://mybot.vercel.app'
-    );
-
-    while (!appUrl) {
-      const urlInput = await clack.text({
-        message: 'Enter your APP_URL (https://...):',
-        validate: (input) => {
-          if (!input) return 'URL is required';
-          if (!input.startsWith('https://')) return 'URL must start with https://';
-        },
+    // Build tunnel options based on what's installed
+    const tunnelOptions = [];
+    if (prereqs.cloudflared.installed) {
+      tunnelOptions.push({
+        value: 'cloudflare-named',
+        label: 'Cloudflare Named Tunnel — permanent URL (requires Cloudflare account + domain)',
       });
-      if (clack.isCancel(urlInput)) {
+      tunnelOptions.push({
+        value: 'cloudflare-quick',
+        label: 'Cloudflare Quick Tunnel — temporary URL (no account needed)',
+      });
+    }
+    tunnelOptions.push({
+      value: 'manual',
+      label: 'Enter URL manually (ngrok, VPS, PaaS, etc.)',
+    });
+    if (!prereqs.cloudflared.installed) {
+      tunnelOptions.push({
+        value: 'cloudflare-install',
+        label: 'Install cloudflared and use Cloudflare Tunnel',
+      });
+    }
+
+    let tunnelChoice = 'manual';
+    if (tunnelOptions.length > 1) {
+      const choiceResult = await clack.select({
+        message: 'How would you like to expose your local server?',
+        options: tunnelOptions,
+      });
+      if (clack.isCancel(choiceResult)) {
         clack.cancel('Setup cancelled.');
         process.exit(0);
       }
-      appUrl = urlInput.replace(/\/$/, '');
+      tunnelChoice = choiceResult;
+    }
+
+    if (tunnelChoice === 'cloudflare-install') {
+      clack.log.info(
+        `Install cloudflared, then re-run setup:\n\n  ${getCloudflaredInstallCmd()}\n`
+      );
+      clack.log.info('Continuing with manual URL entry for now...');
+      tunnelChoice = 'manual';
+    }
+
+    if (tunnelChoice === 'cloudflare-named') {
+      clack.log.info(
+        'A named tunnel gives your bot a permanent public URL tied to your Cloudflare account.\n' +
+        '  Requirements:\n' +
+        '    • A Cloudflare account (free tier works)\n' +
+        '    • A domain managed by Cloudflare (added to your account)\n' +
+        '    • e.g. enter "bot.example.com" if example.com is on Cloudflare'
+      );
+
+      // Prompt for hostname
+      const hostnameInput = await clack.text({
+        message: 'Hostname for your bot (e.g. bot.example.com):',
+        validate: (input) => {
+          if (!input) return 'Hostname is required';
+          if (input.startsWith('http')) return 'Enter only the hostname, not a full URL';
+          if (!input.includes('.')) return 'Must be a fully-qualified hostname (e.g. bot.example.com)';
+        },
+      });
+      if (clack.isCancel(hostnameInput)) {
+        clack.cancel('Setup cancelled.');
+        process.exit(0);
+      }
+      const tunnelHostname = hostnameInput.trim().toLowerCase();
+
+      // Prompt for tunnel name
+      const tunnelNameInput = await clack.text({
+        message: 'Tunnel name (used in cloudflared, can be anything):',
+        initialValue: 'thepopebot',
+        validate: (input) => {
+          if (!input) return 'Tunnel name is required';
+          if (!/^[a-z0-9-]+$/.test(input)) return 'Only lowercase letters, numbers and hyphens allowed';
+        },
+      });
+      if (clack.isCancel(tunnelNameInput)) {
+        clack.cancel('Setup cancelled.');
+        process.exit(0);
+      }
+      const tunnelName = tunnelNameInput.trim();
+
+      try {
+        // Step A: Authenticate with Cloudflare
+        clack.log.info('Opening your browser to authenticate with Cloudflare...');
+        try {
+          cloudflaredLogin();
+        } catch {
+          throw new Error('Cloudflare authentication failed or was cancelled. Please complete the browser login and try again.');
+        }
+        clack.log.success('Cloudflare authentication complete');
+
+        // Step B: Create named tunnel
+        const createSpinner = clack.spinner();
+        createSpinner.start(`Creating named tunnel "${tunnelName}"...`);
+        let tunnelUuid;
+        try {
+          tunnelUuid = createNamedTunnel(tunnelName);
+          createSpinner.stop(`Tunnel "${tunnelName}" created (ID: ${tunnelUuid})`);
+        } catch (err) {
+          createSpinner.stop(`Failed to create tunnel: ${err.message}`);
+          throw err;
+        }
+
+        // Step C: Route DNS
+        const dnsSpinner = clack.spinner();
+        dnsSpinner.start(`Adding DNS record: ${tunnelHostname} → ${tunnelName}...`);
+        try {
+          routeTunnelDns(tunnelName, tunnelHostname);
+          dnsSpinner.stop(`DNS record added: ${tunnelHostname}`);
+        } catch (err) {
+          dnsSpinner.stop(`Failed to add DNS route: ${err.message}`);
+          throw err;
+        }
+
+        // Step D: Start the tunnel
+        const tunnelSpinner = clack.spinner();
+        tunnelSpinner.start(`Starting tunnel "${tunnelName}" → localhost:80...`);
+        const { tunnelProcess } = await startNamedTunnel(tunnelName, 80);
+        tunnelSpinner.stop(`Tunnel connected: https://${tunnelHostname}`);
+        appUrl = `https://${tunnelHostname}`;
+        const stopHint =
+          process.platform === 'win32'
+            ? `taskkill /PID ${tunnelProcess.pid} /F`
+            : `kill ${tunnelProcess.pid}`;
+        clack.log.info(`Tunnel process PID: ${tunnelProcess.pid}  (stop it with: ${stopHint})`);
+        // Detach so the tunnel keeps running after the setup wizard exits
+        tunnelProcess.unref();
+      } catch (err) {
+        clack.log.warn(`Named tunnel setup failed: ${err.message}`);
+        clack.log.warn('Falling back to manual URL entry...');
+        tunnelChoice = 'manual';
+      }
+    }
+
+    if (tunnelChoice === 'cloudflare-quick') {
+      const tunnelSpinner = clack.spinner();
+      tunnelSpinner.start('Starting Cloudflare Quick Tunnel to localhost:80...');
+      try {
+        const { url, tunnelProcess } = await startQuickTunnel(80);
+        tunnelSpinner.stop(`Tunnel ready: ${url}`);
+        appUrl = url;
+        clack.log.warn(
+          'This URL is temporary — it changes each time cloudflared restarts.\n' +
+          '  For a permanent URL, choose "Cloudflare Named Tunnel" next time.'
+        );
+        const stopHint =
+          process.platform === 'win32'
+            ? `taskkill /PID ${tunnelProcess.pid} /F`
+            : `kill ${tunnelProcess.pid}`;
+        clack.log.info(`Tunnel process PID: ${tunnelProcess.pid}  (stop it with: ${stopHint})`);
+        // Detach so the tunnel keeps running after the setup wizard exits
+        tunnelProcess.unref();
+      } catch (err) {
+        tunnelSpinner.stop(`Failed to start tunnel: ${err.message}`);
+        clack.log.warn('Falling back to manual URL entry...');
+        tunnelChoice = 'manual';
+      }
+    }
+
+    if (tunnelChoice === 'manual' || !appUrl) {
+      clack.log.info(
+        'Your app needs a public URL so GitHub can send webhook notifications.\n' +
+        '  Examples:\n' +
+        '    Cloudflare Named Tunnel: https://bot.example.com\n' +
+        '    Cloudflare Quick Tunnel: https://abc-def.trycloudflare.com\n' +
+        '    ngrok: https://abc123.ngrok.io\n' +
+        '    VPS:   https://mybot.example.com\n' +
+        '    PaaS:  https://mybot.vercel.app'
+      );
+
+      while (!appUrl) {
+        const urlInput = await clack.text({
+          message: 'Enter your APP_URL (https://...):',
+          validate: (input) => {
+            if (!input) return 'URL is required';
+            if (!input.startsWith('https://')) return 'URL must start with https://';
+          },
+        });
+        if (clack.isCancel(urlInput)) {
+          clack.cancel('Setup cancelled.');
+          process.exit(0);
+        }
+        appUrl = urlInput.replace(/\/$/, '');
+      }
     }
   }
 
