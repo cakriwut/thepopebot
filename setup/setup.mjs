@@ -876,7 +876,11 @@ async function main() {
           'This URL is temporary — it changes each time cloudflared restarts.\n' +
           '  For a permanent URL, choose "Cloudflare Named Tunnel" next time.'
         );
-        clack.log.info(`Tunnel process PID: ${tunnelProcess.pid}  (kill it with: kill ${tunnelProcess.pid})`);
+        const stopHint =
+          process.platform === 'win32'
+            ? `taskkill /PID ${tunnelProcess.pid} /F`
+            : `kill ${tunnelProcess.pid}`;
+        clack.log.info(`Tunnel process PID: ${tunnelProcess.pid}  (stop it with: ${stopHint})`);
         // Detach so the tunnel keeps running after the setup wizard exits
         tunnelProcess.unref();
       } catch (err) {
