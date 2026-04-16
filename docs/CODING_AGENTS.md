@@ -429,7 +429,7 @@ kimi --print -p "$PROMPT" --output-format stream-json \
 - Launches `kimi` inside tmux with session name `kimi-${PORT}`
 - Serves via ttyd on the assigned port
 
-**Session tracking**: Uses native `SessionStart` hooks (similar to Claude Code). The hook is registered in `~/.kimi/config.toml` under the `[[hooks]]` section. It parses `session_id` from stdin JSON and writes to `/home/coding-agent/.kimi-ttyd-sessions/${PORT}`. Sessions are validated via `kimi session list`.
+**Session tracking**: Uses native `SessionStart` hooks following the same pattern as Claude Code and Codex CLI. The hook is registered in `~/.kimi/config.toml` under the `[[hooks]]` section. It receives JSON on stdin containing a `session_id` field, extracts it using `grep`/`cut` (rather than `jq`), and writes to `/home/coding-agent/.kimi-ttyd-sessions/${PORT}`. Sessions are validated via `kimi session list`.
 
 **System prompt**: Written to `${WORKSPACE_DIR}/AGENTS.md` in the workspace root.
 
