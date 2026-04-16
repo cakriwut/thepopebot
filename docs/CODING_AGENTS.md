@@ -161,6 +161,78 @@ Event Handler
             9. create-pr.sh      → Create pull request
 ```
 
+### Interactive Mode — TTY Architecture
+
+Interactive mode provides a browser-based terminal into a running coding agent container. The architecture uses a chain of components to enable bidirectional I/O between the user's browser and the agent CLI:
+
+```
+Browser (xterm.js)  ←—WebSocket—→  Event Handler (ws-proxy.js)  ←—WebSocket—→  ttyd (in container)  ←—PTY—→  tmux  ←—PTY—→  Agent CLI
+```
+
+#### How two-way interaction works
+
+**1. Container side — tmux + ttyd**
+
+Each agent's `interactive.sh` script starts the agent CLI inside a **tmux** session, then launches **ttyd** to serve it over HTTP/WebSocket:
+
+```bash
+# Example from opencode interactive.sh:
+tmux -u new-session -d -s opencode -e PORT="${PORT:-7681}" $OPENCODE_ARGS
+exec ttyd --writable -p "${PORT:-7681}" tmux attach -t opencode
+```
+
+- **tmux** allocates a pseudo-terminal (PTY) and runs the agent CLI inside it. The agent reads stdin and writes stdout/stderr through the PTY just like a normal terminal. tmux also survives disconnects — if the browser closes, the agent keeps running and the user can reconnect.
+- **ttyd** (`--writable` flag) binds to a port (default 7681) and exposes the tmux session as a WebSocket endpoint at `ws://<container>:<port>/ws`. It bridges the PTY I/O to WebSocket frames using a simple protocol: `'0' + data` for terminal output, `'1' + JSON` for resize events.
+
+**2. Event handler side — WebSocket proxy**
+
+The Next.js custom server (`web/server.js`) attaches a WebSocket proxy via `attachCodeProxy(server)` from `lib/code/ws-proxy.js`:
+
+- On browser WebSocket upgrade to `/code/{workspaceId}/ws`, the proxy authenticates the user by decoding the `authjs.session-token` JWT cookie
+- Verifies workspace ownership (user must own the workspace)
+- Opens a backend WebSocket to `ws://{containerName}:7681/ws` using the ttyd `tty` subprotocol
+- Bidirectionally pipes messages: every message from the browser is forwarded to ttyd, and every message from ttyd is forwarded to the browser
+
+```
+proxyWebSocket(wss, req, socket, head, container, port)
+  ├─ backendWs = new WebSocket(`ws://${container}:${port}/ws`, 'tty')
+  ├─ backendWs.on('message') → clientWs.send()    // container output → browser
+  └─ clientWs.on('message')  → backendWs.send()   // browser input → container
+```
+
+**3. Browser side — xterm.js**
+
+The `TerminalView` component (`lib/code/terminal-view.jsx`) renders an **xterm.js** terminal in the browser:
+
+- Opens a WebSocket to `wss://{host}/code/{workspaceId}/ws`
+- Sends initial handshake with terminal dimensions: `JSON.stringify({ AuthToken: '', columns, rows })`
+- **User input → agent**: `term.onData((data) => ws.send('0' + data))` — every keystroke is prefixed with `'0'` and sent over WebSocket
+- **Agent output → display**: `ws.onmessage` receives frames where type `'0'` carries terminal output, which is written to xterm via `term.write(payload)`
+- **Resize**: when the browser window resizes, sends `'1' + JSON.stringify({ columns, rows })` so ttyd adjusts the PTY dimensions
+
+#### How the system captures input/output
+
+The ttyd protocol defines a simple framing format:
+
+| Direction | Prefix | Payload | Purpose |
+|-----------|--------|---------|---------|
+| Browser → Container | `'0'` | Raw terminal data | Keystrokes, paste, escape sequences |
+| Browser → Container | `'1'` | `{ columns, rows }` JSON | Terminal resize |
+| Container → Browser | `'0'` | Raw terminal data | Agent output, prompts, TUI rendering |
+| Container → Browser | `'1'` | Window title | Ignored by thepopebot |
+
+The WebSocket proxy passes these frames transparently — it does not interpret, buffer, or transform the data. All terminal rendering (colors, cursor movement, line wrapping) is handled by xterm.js in the browser using the raw ANSI escape sequences produced by tmux/the agent.
+
+#### Multi-tab sessions
+
+Additional terminal tabs are supported via per-port session isolation:
+
+- Primary tab uses port **7681** (the default ttyd port started by `interactive.sh`)
+- Extra tabs start new ttyd+tmux pairs on ports **7682, 7683, ...** via `start-coding-session.sh` or `start-shell-session.sh`
+- The event handler tracks sessions in memory (`lib/code/terminal-sessions.js`), mapping `workspaceId → { sessionId, port }`
+- Each tab gets its own WebSocket path: `/code/{id}/term/{sessionId}/ws`, proxied to the container on the assigned port
+- Session IDs for agent continuation are stored per-port, so each tab maintains independent conversation state
+
 ---
 
 ### Claude Code Integration
