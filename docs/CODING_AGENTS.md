@@ -205,7 +205,7 @@ proxyWebSocket(wss, req, socket, head, container, port)
 The `TerminalView` component (`lib/code/terminal-view.jsx`) renders an **xterm.js** terminal in the browser:
 
 - Opens a WebSocket to `wss://{host}/code/{workspaceId}/ws`
-- Sends initial handshake with terminal dimensions: `JSON.stringify({ AuthToken: '', columns, rows })`
+- Sends initial handshake with terminal dimensions: `JSON.stringify({ AuthToken: '', columns, rows })` (AuthToken is required by the ttyd protocol but unused — actual auth happens via JWT cookie at the WebSocket proxy layer)
 - **User input → agent**: `term.onData((data) => ws.send('0' + data))` — every keystroke is prefixed with `'0'` and sent over WebSocket
 - **Agent output → display**: `ws.onmessage` receives frames where type `'0'` carries terminal output, which is written to xterm via `term.write(payload)`
 - **Resize**: when the browser window resizes, sends `'1' + JSON.stringify({ columns, rows })` so ttyd adjusts the PTY dimensions
